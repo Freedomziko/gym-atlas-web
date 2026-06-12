@@ -42,6 +42,38 @@ const toSlug = (str: string) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-|-$/g, '');
 
+type MuscleSuggestionRule = {
+	keywords: string[];
+	muscles: string[];
+};
+
+const muscleSuggestionRules: MuscleSuggestionRule[] = [
+	{ keywords: ['chest press', 'bench press', 'pec fly', 'chest fly'], muscles: ['Chest', 'Shoulders', 'Triceps'] },
+	{ keywords: ['shoulder press', 'lateral raise', 'rear delt'], muscles: ['Shoulders', 'Triceps', 'Traps'] },
+	{ keywords: ['curl', 'bicep', 'preacher'], muscles: ['Biceps'] },
+	{ keywords: ['tricep', 'pushdown', 'dip'], muscles: ['Triceps'] },
+	{ keywords: ['lat pulldown', 'pulldown', 'row'], muscles: ['Lats', 'Upper Back', 'Biceps'] },
+	{ keywords: ['leg press', 'hack squat', 'squat'], muscles: ['Quads', 'Glutes', 'Hamstrings'] },
+	{ keywords: ['leg extension'], muscles: ['Quads'] },
+	{ keywords: ['leg curl', 'hamstring'], muscles: ['Hamstrings'] },
+	{ keywords: ['hip thrust', 'glute'], muscles: ['Glutes', 'Hamstrings'] },
+	{ keywords: ['calf'], muscles: ['Calves'] },
+	{ keywords: ['ab', 'crunch'], muscles: ['Abs'] }
+];
+
+const getSuggestedMuscleNames = (machineName: string) => {
+	const normalizedName = machineName.toLowerCase();
+	const suggestions = new Set<string>();
+
+	muscleSuggestionRules.forEach((rule) => {
+		if (rule.keywords.some((keyword) => normalizedName.includes(keyword))) {
+			rule.muscles.forEach((muscle) => suggestions.add(muscle.toLowerCase()));
+		}
+	});
+
+	return suggestions;
+};
+
 // ── Subcomponents ────────────────────────────────────────────────────────────
 
 function SubmitButton({
@@ -114,19 +146,29 @@ function MuscleGroupButtons({
 	categories,
 	selectedIds,
 	onToggle,
-	loading
+	onSelectMany,
+	loading,
+	machineName
 }: {
 	categories: BestInClassCategory[];
 	selectedIds: number[];
 	onToggle: (id: number) => void;
+	onSelectMany: (ids: number[]) => void;
 	loading: boolean;
+	machineName: string;
 }) {
 	const [query, setQuery] = useState('');
+	const suggestedNames = useMemo(() => getSuggestedMuscleNames(machineName), [machineName]);
+	const suggestedCategories = useMemo(
+		() => categories.filter((category) => suggestedNames.has(category.name.toLowerCase())),
+		[categories, suggestedNames]
+	);
 	const filteredCategories = useMemo(() => {
 		const normalizedQuery = query.trim().toLowerCase();
 		if (!normalizedQuery) return categories;
 		return categories.filter((category) => category.name.toLowerCase().includes(normalizedQuery));
 	}, [categories, query]);
+	const showSuggestions = query.trim().length === 0 && suggestedCategories.length > 0;
 
 	if (loading) {
 		return <p className="text-sub mt-2 text-xs">Loading muscle groups...</p>;
@@ -143,6 +185,41 @@ function MuscleGroupButtons({
 					className="text-main placeholder:text-sub w-full bg-transparent text-xs outline-none"
 				/>
 			</div>
+
+			{showSuggestions && (
+				<div className="border-border/70 rounded-lg border px-2.5 py-2">
+					<div className="mb-2 flex items-center justify-between gap-2">
+						<p className="text-sub text-[10px] uppercase tracking-wide">Suggested from name</p>
+						<button
+							type="button"
+							onClick={() => onSelectMany(suggestedCategories.map((category) => category.id))}
+							className="text-sub hover:text-main text-[11px] transition"
+						>
+							Use all
+						</button>
+					</div>
+					<div className="flex flex-wrap gap-2">
+						{suggestedCategories.map((category) => {
+							const selected = selectedIds.includes(category.id);
+
+							return (
+								<button
+									key={category.id}
+									type="button"
+									onClick={() => onToggle(category.id)}
+									className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition ${
+										selected
+											? 'bg-main text-bg border-transparent'
+											: 'border-main/40 text-main hover:bg-main hover:text-bg'
+									}`}
+								>
+									{category.name}
+								</button>
+							);
+						})}
+					</div>
+				</div>
+			)}
 
 			<div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1">
 				{filteredCategories.map((category) => {
@@ -299,6 +376,10 @@ export default function NewMachineCard({ onCreated }: Props) {
 		);
 	};
 
+	const selectMuscleGroups = (ids: number[]) => {
+		setSelectedMuscleIds((current) => Array.from(new Set([...current, ...ids])));
+	};
+
 	const handleCreate = async () => {
 		if (!isValid || isCreating) return;
 		if (!requireAuth('add a machine')) return;
@@ -404,7 +485,9 @@ export default function NewMachineCard({ onCreated }: Props) {
 						categories={muscleGroups}
 						selectedIds={selectedMuscleIds}
 						onToggle={toggleMuscleGroup}
+						onSelectMany={selectMuscleGroups}
 						loading={muscleGroupsLoading}
+						machineName={name}
 					/>
 				</div>
 
@@ -457,7 +540,9 @@ export default function NewMachineCard({ onCreated }: Props) {
 						categories={muscleGroups}
 						selectedIds={selectedMuscleIds}
 						onToggle={toggleMuscleGroup}
+						onSelectMany={selectMuscleGroups}
 						loading={muscleGroupsLoading}
+						machineName={name}
 					/>
 				</div>
 
