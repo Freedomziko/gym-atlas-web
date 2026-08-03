@@ -568,7 +568,6 @@ export default function GymProfileClient() {
 								<div className="flex items-center gap-2">
 									<div className="border-border bg-bg/40 rounded-xl border px-3 py-2 text-right">
 										<p className="text-sub text-[10px] uppercase">Dumbbells</p>
-										<p className="text-main text-sm font-semibold">2-50kg</p>
 										<p className="text-main text-sm font-semibold">{dumbbellRange}</p>
 									</div>
 									<span className="border-border bg-bg/40 text-main hidden rounded-full border px-2.5 py-1 text-xs transition group-open:hidden sm:inline">
